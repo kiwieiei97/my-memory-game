@@ -4,38 +4,66 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>เกมจับคู่สุดง่าย</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
+        /* 🎨 ปรับปรุง UI และแก้ปัญหา Responsive */
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Kanit', sans-serif; /* ใช้ฟอนต์ใหม่ */
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
             margin: 0;
-            background-color: #f0f0f0;
+            background-color: #e0e7ff; /* สีฟ้าอ่อนนุ่ม */
+            padding: 20px 10px; /* เพิ่ม padding ขอบหน้าจอ */
         }
+        h1 {
+            color: #4338ca; /* สีม่วงเข้ม (Indigo) */
+            font-weight: 900;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            text-align: center;
+        }
+        .score, .timer, .high-score {
+            font-size: 1.3em;
+            margin-bottom: 10px;
+            color: #4b5563;
+        }
+        .high-score {
+            color: #ef4444; /* สีแดงสว่าง */
+            font-weight: 700;
+        }
+        /* ---------------------------------------------------- */
+        /* 🎯 การแก้ไข Responsive Grid (แก้ปัญหาล้นขอบมือถือ) */
         .game-board {
             display: grid;
-            grid-template-columns: repeat(4, 80px); /* 4 คอลัมน์ ขนาด 100px */
+            /* grid-template-columns: ถูกกำหนดด้วย JS ให้เป็น repeat(X, 1fr) */
             gap: 8px;
-            padding: 20px;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            padding: 15px;
+            max-width: 600px; /* จำกัดขนาดสูงสุดบนจอใหญ่ */
+            width: 95vw; /* สำคัญ: ใช้ความกว้าง 95% ของ viewport */
+            background-color: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2), 0 5px 10px rgba(0,0,0,0.1); 
+            transition: all 0.5s;
         }
         .card {
-            width: 80px;
-            height: 80px;
+            /* ลบ width และ height คงที่ออก เพื่อให้ยืดหยุ่น */
+            height: 0;
+            padding-top: 100%; /* สำคัญ: ใช้ Padding Top เพื่อให้การ์ดเป็นสี่เหลี่ยมจัตุรัสเสมอ */
             perspective: 1000px;
             cursor: pointer;
+            position: relative; /* สำคัญ: เพื่อให้ card-inner ใช้ absolute ได้ */
         }
         .card-inner {
             width: 100%;
             height: 100%;
-            transition: transform 0.6s;
+            transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55); /* เพิ่มความรู้สึกเด้ง */
             transform-style: preserve-3d;
-            position: relative;
+            position: absolute; /* สำคัญ: ให้เต็มพื้นที่ของ .card */
+            top: 0;
+            left: 0;
         }
         .card.flipped .card-inner {
             transform: rotateY(180deg);
@@ -46,21 +74,21 @@
             height: 100%;
             -webkit-backface-visibility: hidden;
             backface-visibility: hidden;
-            border-radius: 4px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5em;
+            font-size: 1.5em; 
             font-weight: bold;
         }
         .card-back {
-            background-color: #4CAF50; /* สีเขียว */
+            background-color: #4f46e5; /* สีม่วง (Indigo) */
             color: white;
-            /* ด้านหลังหันมาด้านหน้าตั้งแต่แรก */
+            box-shadow: 0 4px #4338ca; /* เงาด้านล่างแบบ 3D */
         }
         .card-front {
-            background-color: #ddd; /* สีเทา */
-            transform: rotateY(180deg); /* ด้านหน้ารูปภาพหันไปด้านหลังตั้งแต่แรก */
+            background-color: #f3f4f6;
+            transform: rotateY(180deg);
         }
         .card-front img {
             max-width: 90%;
@@ -68,55 +96,64 @@
             object-fit: contain;
         }
         .card.matched .card-front, .card.matched .card-back {
-            opacity: 0.5;
+            opacity: 0.3;
             cursor: default;
+            transform: scale(0.9); /* ย่อลงเมื่อจับคู่ได้ */
+            transition: all 0.5s;
         }
+        /* ---------------------------------------------------- */
+        /* 🎨 ปรับปรุงปุ่มและ UI อื่นๆ */
         button {
-            margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 1.2em;
+            margin-top: 30px;
+            padding: 12px 30px;
+            font-size: 1.3em;
             cursor: pointer;
-            background-color: #007bff;
+            background-color: #10b981; /* สีเขียวมิ้นต์ (Emerald) */
             color: white;
             border: none;
-            border-radius: 5px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); 
-            transition: background-color 0.3s;
+            border-radius: 8px;
+            box-shadow: 0 6px #059669; /* เงาด้านล่างแบบ 3D */
+            transition: all 0.1s ease-in-out;
+            font-family: 'Kanit', sans-serif; 
+            font-weight: 700;
         }
-
         button:hover {
-            background-color: #0056b3; /* สีเข้มขึ้นเมื่อชี้ */
+            background-color: #059669; 
+            box-shadow: 0 4px #047857;
         }
-        .score, .timer {
-            font-size: 1.2em;
-            margin-bottom: 10px;
-        }
-        .high-score {
-            font-size: 1.2em;
-            margin-bottom: 10px;
-            color: #cc0000; /* ให้สีแดงเด่นขึ้น */
-            font-weight: bold;
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px #047857;
         }
         .result {
             font-size: 2em;
-            color: #333;
+            color: #4338ca;
             margin-top: 20px;
+            font-weight: 700;
+            text-align: center;
+        }
+        /* ---------------------------------------------------- */
+        /* Media Query: ปรับขนาดฟอนต์บนจอเล็ก */
+        @media (max-width: 480px) {
+            h1 { font-size: 1.8em; }
+            .score, .timer, .high-score { font-size: 1.1em; }
+            .card-face { font-size: 1.2em; } /* ฟอนต์บนการ์ดเล็กลง */
         }
     </style>
 </head>
 <body>
     <h1>เกมจับคู่รูปภาพ</h1>
-    <div style="margin-bottom: 10px;">
-    <label for="game-level">เลือกระดับความยาก:</label>
-    <select id="game-level">
-        <option value="easy">ง่าย (4x4)</option>
-        <option value="medium">ปานกลาง (5x4)</option>
-        <option value="hard">ยาก (6x4)</option>
-    </select>
-</div>
+    <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+        <label for="game-level">เลือกระดับความยาก:</label>
+        <select id="game-level">
+            <option value="easy">ง่าย (4x4)</option>
+            <option value="medium">ปานกลาง (5x4)</option>
+            <option value="hard">ยาก (6x4)</option>
+        </select>
+    </div>
     <div class="score">คะแนน: <span id="score">0</span></div>
     <div class="high-score">คะแนนสูงสุด: <span id="high-score">0</span></div>
-    <div class="timer">เวลา: <span id="timer">60</span>s</div>
+    <div class="timer">เวลา: <span id="timer">0</span>s</div>
     <div class="game-board" id="game-board">
         </div>
     <button id="restart-button">เริ่มเกมใหม่</button>
@@ -130,14 +167,14 @@
         const timerDisplay = document.getElementById('timer');
         const resultDisplay = document.getElementById('result');
         const levelSelect = document.getElementById('game-level');
-        const highScoreDisplay = document.getElementById('high-score'); // เพิ่มตัวแปร High Score
+        const highScoreDisplay = document.getElementById('high-score');
 
         // *** รายการไฟล์รูปภาพของคุณ (เก็บไว้ที่นี่) ***
         const imageFiles = [
             '1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', 
             '6.jpg', '7.jpg', '8.jpg', '9.jpg', '10.jpg', 
             '11.jpg', '12.jpg', '13.jpg', '14.jpg', '15.jpg', 
-            // '16.jpg', // มี 15 รูปภาพ ถ้าจะใช้ Level Hard (12 คู่) ต้องมีอย่างน้อย 12 รูป
+            // สำหรับ Level Hard (12 คู่) คุณต้องมีอย่างน้อย 12 รูป
         ];
         
         // *** การตั้งค่า Level ***
@@ -146,7 +183,6 @@
             medium: { pairs: 10, time: 75, cols: 5 }, // 20 การ์ด, 5x4 
             hard: { pairs: 12, time: 60, cols: 6 } // 24 การ์ด, 6x4 
         };
-        // *** สิ้นสุดการแก้ไขตัวแปรส่วนบน ***
 
         let cards = [];
         let flippedCards = [];
@@ -155,7 +191,7 @@
         let timeLeft = 0;
         let timerInterval;
         let isGameActive = false;
-        let pairsToWin = 0; // เพิ่มตัวแปรนี้เพื่อใช้ตรวจสอบเงื่อนไขชนะ
+        let pairsToWin = 0; 
 
         // ฟังก์ชันสลับการ์ด (สับไพ่)
         function shuffle(array) {
@@ -178,13 +214,11 @@
             const pairsToUse = currentLevel.pairs;
             const colsToUse = currentLevel.cols;
 
-            // โหลดและแสดง High Score ก่อนเริ่มเกม
             let highScore = loadHighScore();
             highScoreDisplay.textContent = highScore;
             
-            // เช็คว่ามีรูปภาพพอไหม
             if (imageFiles.length < pairsToUse) {
-                alert(`กรุณาเพิ่มรูปภาพอย่างน้อย ${pairsToUse} รูปสำหรับ Level ${levelSelect.value}`);
+                alert(`กรุณาเพิ่มรูปภาพอย่างน้อย ${pairsToUse} รูปสำหรับ Level ${levelSelect.value} ในตัวแปร imageFiles`);
                 return;
             }
 
@@ -195,13 +229,11 @@
             matchedPairs = 0;
             flippedCards = [];
             isGameActive = true;
-            pairsToWin = pairsToUse; // กำหนดจำนวนคู่ที่ต้องจับให้ชนะ
+            pairsToWin = pairsToUse;
 
-            // 1. สร้างชุดรูปภาพสำหรับการเล่นตาม Level
             const selectedImageFiles = imageFiles.slice(0, pairsToUse); 
             const gameImages = [...selectedImageFiles, ...selectedImageFiles];
             
-            // 2. สับการ์ด
             cards = shuffle(gameImages).map((image, index) => ({
                 id: index,
                 image: image,
@@ -209,10 +241,9 @@
                 isMatched: false
             }));
 
-            // 3. ปรับขนาดกระดานตาม Level
-            gameBoard.style.gridTemplateColumns = `repeat(${colsToUse}, 80px)`;
+            // 🎯 การแก้ไข JavaScript: ใช้ 1fr เพื่อทำให้ Grid ยืดหยุ่น
+            gameBoard.style.gridTemplateColumns = `repeat(${colsToUse}, 1fr)`;
             
-            // 4. แสดงการ์ดบนกระดาน
             cards.forEach(card => {
                 const cardElement = document.createElement('div');
                 cardElement.classList.add('card');
@@ -240,7 +271,6 @@
                 gameBoard.appendChild(cardElement);
             });
 
-            // 5. ตั้งค่าเวลา
             timeLeft = currentLevel.time;
             timerDisplay.textContent = timeLeft;
             clearInterval(timerInterval);
@@ -257,7 +287,7 @@
             }, 1000);
         }
 
-        // ฟังก์ชันพลิกการ์ด
+        // ฟังก์ชันพลิกการ์ด (Logic เดิม)
         function flipCard(id) {
             if (!isGameActive) return;
             if (flippedCards.length === 2) return;
@@ -274,7 +304,7 @@
             }
         }
 
-        // ฟังก์ชันตรวจสอบการจับคู่
+        // ฟังก์ชันตรวจสอบการจับคู่ (Logic เดิม)
         function checkMatch() {
             const [id1, id2] = flippedCards;
             const card1 = cards.find(card => card.id === id1);
@@ -290,7 +320,7 @@
                 score += 100;
                 scoreDisplay.textContent = score;
 
-                if (matchedPairs === pairsToWin) { // ใช้ pairsToWin แทน
+                if (matchedPairs === pairsToWin) { 
                     // ชนะเกม
                     clearInterval(timerInterval);
                     isGameActive = false;
