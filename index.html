@@ -25,13 +25,23 @@
             font-size: 2.5em;
             text-align: center;
         }
-        .score, .timer, .high-score {
+        .info-panel {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .level-display, .score, .timer, .high-score {
             font-size: 1.3em;
-            margin-bottom: 10px;
             color: #4b5563;
         }
         .high-score {
             color: #ef4444; /* สีแดงสว่าง */
+            font-weight: 700;
+        }
+        .level-display {
+            color: #4f46e5;
             font-weight: 700;
         }
         /* ---------------------------------------------------- */
@@ -136,24 +146,19 @@
         /* Media Query: ปรับขนาดฟอนต์บนจอเล็ก */
         @media (max-width: 480px) {
             h1 { font-size: 1.8em; }
-            .score, .timer, .high-score { font-size: 1.1em; }
-            .card-face { font-size: 1.2em; } /* ฟอนต์บนการ์ดเล็กลง */
+            .level-display, .score, .timer, .high-score { font-size: 1.1em; }
+            .card-face { font-size: 1.2em; }
         }
     </style>
 </head>
 <body>
     <h1>เกมจับคู่รูปภาพ</h1>
-    <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
-        <label for="game-level">เลือกระดับความยาก:</label>
-        <select id="game-level">
-            <option value="easy">ง่าย (4x4)</option>
-            <option value="medium">ปานกลาง (5x4)</option>
-            <option value="hard">ยาก (6x4)</option>
-        </select>
+    <div class="info-panel">
+        <div class="level-display">เลเวล: <span id="current-level">1</span></div>
+        <div class="score">คะแนน: <span id="score">0</span></div>
+        <div class="high-score">คะแนนสูงสุด: <span id="high-score">0</span></div>
+        <div class="timer">เวลา: <span id="timer">0</span>s</div>
     </div>
-    <div class="score">คะแนน: <span id="score">0</span></div>
-    <div class="high-score">คะแนนสูงสุด: <span id="high-score">0</span></div>
-    <div class="timer">เวลา: <span id="timer">0</span>s</div>
     <div class="game-board" id="game-board">
         </div>
     <button id="restart-button">เริ่มเกมใหม่</button>
@@ -166,23 +171,16 @@
         const scoreDisplay = document.getElementById('score');
         const timerDisplay = document.getElementById('timer');
         const resultDisplay = document.getElementById('result');
-        const levelSelect = document.getElementById('game-level');
         const highScoreDisplay = document.getElementById('high-score');
+        const currentLevelDisplay = document.getElementById('current-level'); // ตัวแสดง Level
 
         // *** รายการไฟล์รูปภาพของคุณ (เก็บไว้ที่นี่) ***
         const imageFiles = [
             '1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', 
             '6.jpg', '7.jpg', '8.jpg', '9.jpg', '10.jpg', 
             '11.jpg', '12.jpg', '13.jpg', '14.jpg', '15.jpg', 
-            // สำหรับ Level Hard (12 คู่) คุณต้องมีอย่างน้อย 12 รูป
         ];
-        
-        // *** การตั้งค่า Level ***
-        const LEVELS = {
-            easy: { pairs: 8, time: 90, cols: 4 }, // 16 การ์ด, 4x4
-            medium: { pairs: 10, time: 75, cols: 5 }, // 20 การ์ด, 5x4 
-            hard: { pairs: 12, time: 60, cols: 6 } // 24 การ์ด, 6x4 
-        };
+        const MAX_PAIRS = imageFiles.length; // จำนวนคู่สูงสุดที่ใช้ได้คือ 15 คู่
 
         let cards = [];
         let flippedCards = [];
@@ -192,6 +190,32 @@
         let timerInterval;
         let isGameActive = false;
         let pairsToWin = 0; 
+        let currentLevel = 1; // เริ่มต้นที่ Level 1
+
+        // ฟังก์ชันคำนวณพารามิเตอร์ตาม Level
+        function calculateLevelParams(level) {
+            // Level Progression Logic:
+            let pairs, cols, time;
+            
+            // 1. จำนวนคู่ (Pairs)
+            // เพิ่ม 1 คู่ทุกๆ 2 Level, เริ่มต้นที่ 8 คู่
+            pairs = Math.min(MAX_PAIRS, 8 + Math.floor((level - 1) / 2));
+            
+            // 2. จำนวนคอลัมน์ (Cols)
+            if (pairs <= 8) {
+                cols = 4; // 4x4
+            } else if (pairs <= 10) {
+                cols = 5; // 5x4 (ถ้าใช้ 10 คู่)
+            } else {
+                cols = 6; // 6x4 (ถ้าใช้ 12 คู่ขึ้นไป)
+            }
+
+            // 3. เวลา (Time)
+            // เวลาเริ่มต้น 90 วินาที และลดลง 5 วินาทีทุกๆ 2 Level
+            time = Math.max(30, 90 - Math.floor((level - 1) / 2) * 5); 
+
+            return { pairs, cols, time };
+        }
 
         // ฟังก์ชันสลับการ์ด (สับไพ่)
         function shuffle(array) {
@@ -207,33 +231,68 @@
             const storedScore = localStorage.getItem('memoryGameHighScore');
             return storedScore ? parseInt(storedScore) : 0;
         }
-        
-        // ฟังก์ชันเริ่มต้นเกม
-        function initializeGame() {
-            const currentLevel = LEVELS[levelSelect.value];
-            const pairsToUse = currentLevel.pairs;
-            const colsToUse = currentLevel.cols;
+
+        // ฟังก์ชันเตรียม Level ถัดไป
+        function nextLevel() {
+    clearInterval(timerInterval);
+    isGameActive = false;
+    
+    // ให้ Time Bonus ก่อนเริ่ม Level ใหม่
+    const timeBonus = 30; // 🎯 เปลี่ยนจาก 15 เป็น 30 วินาที
+    timeLeft += timeBonus; 
+    timerDisplay.textContent = timeLeft;
+
+    resultDisplay.textContent = `เยี่ยม! ผ่าน Level ${currentLevel}! รับโบนัสเวลา ${timeBonus}s`;
+            
+            // เลื่อน Level
+            currentLevel++;
+            currentLevelDisplay.textContent = currentLevel;
+            
+            // หน่วงเวลาเล็กน้อยก่อนเริ่ม Level ใหม่
+            setTimeout(initializeGame, 2000); 
+        }
+
+        // ฟังก์ชันเริ่มต้นเกม (ใช้สำหรับเริ่มเกมใหม่ครั้งแรก และเริ่ม Level ถัดไป)
+        function initializeGame(isNewGame = false) {
+            if (isNewGame) {
+                currentLevel = 1; // รีเซ็ต Level เมื่อกดปุ่ม 'เริ่มเกมใหม่'
+                score = 0; // รีเซ็ตคะแนน
+                currentLevelDisplay.textContent = currentLevel;
+            }
+
+            const params = calculateLevelParams(currentLevel);
+            const pairsToUse = params.pairs;
+            const colsToUse = params.cols;
+            const initialTime = params.time;
 
             let highScore = loadHighScore();
             highScoreDisplay.textContent = highScore;
             
+            if (currentLevel === 1 || isNewGame) {
+                timeLeft = initialTime; // ใช้เวลาเริ่มต้นเมื่อเริ่มเกมใหม่
+            }
+            // ถ้าเป็น Next Level, ใช้ timeLeft ที่มี Time Bonus อยู่แล้ว
+
+            // ตรวจสอบจำนวนรูปภาพที่ต้องใช้
             if (imageFiles.length < pairsToUse) {
-                alert(`กรุณาเพิ่มรูปภาพอย่างน้อย ${pairsToUse} รูปสำหรับ Level ${levelSelect.value} ในตัวแปร imageFiles`);
+                alert(`ไม่สามารถไป Level ${currentLevel} ได้! กรุณาเพิ่มรูปภาพอย่างน้อย ${pairsToUse} รูป (ปัจจุบันมี ${imageFiles.length} รูป)`);
+                currentLevel--; // กลับไป Level เดิม
                 return;
             }
 
             gameBoard.innerHTML = '';
             resultDisplay.textContent = '';
-            score = 0;
             scoreDisplay.textContent = score;
             matchedPairs = 0;
             flippedCards = [];
             isGameActive = true;
             pairsToWin = pairsToUse;
 
+            // 1. สร้างชุดรูปภาพสำหรับการเล่นตาม Level
             const selectedImageFiles = imageFiles.slice(0, pairsToUse); 
             const gameImages = [...selectedImageFiles, ...selectedImageFiles];
             
+            // 2. สับการ์ด
             cards = shuffle(gameImages).map((image, index) => ({
                 id: index,
                 image: image,
@@ -241,14 +300,15 @@
                 isMatched: false
             }));
 
-            // 🎯 การแก้ไข JavaScript: ใช้ 1fr เพื่อทำให้ Grid ยืดหยุ่น
+            // 3. ปรับขนาดกระดานให้ยืดหยุ่น (Responsive Grid)
             gameBoard.style.gridTemplateColumns = `repeat(${colsToUse}, 1fr)`;
             
+            // 4. แสดงการ์ดบนกระดาน (โค้ดเดิม)
             cards.forEach(card => {
                 const cardElement = document.createElement('div');
                 cardElement.classList.add('card');
                 cardElement.dataset.id = card.id;
-
+                // ... (ส่วนการสร้าง card-inner, card-front, card-back เหมือนเดิม) ...
                 const cardInner = document.createElement('div');
                 cardInner.classList.add('card-inner');
 
@@ -271,7 +331,7 @@
                 gameBoard.appendChild(cardElement);
             });
 
-            timeLeft = currentLevel.time;
+            // 5. ตั้งค่าเวลาและเริ่ม Timer
             timerDisplay.textContent = timeLeft;
             clearInterval(timerInterval);
             timerInterval = setInterval(() => {
@@ -281,8 +341,15 @@
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
                     isGameActive = false;
-                    resultDisplay.textContent = 'หมดเวลา! ลองใหม่นะ';
+                    resultDisplay.textContent = `เกมโอเวอร์! คุณไปได้ถึง Level ${currentLevel} ด้วยคะแนน ${score}`;
                     restartButton.textContent = 'เล่นอีกครั้ง';
+                    // ตรวจสอบ High Score เมื่อ Game Over
+                    let currentHighScore = loadHighScore();
+                    if (score > currentHighScore) {
+                        localStorage.setItem('memoryGameHighScore', score);
+                        highScoreDisplay.textContent = score;
+                        resultDisplay.textContent += ' (สถิติใหม่!)';
+                    }
                 }
             }, 1000);
         }
@@ -304,7 +371,7 @@
             }
         }
 
-        // ฟังก์ชันตรวจสอบการจับคู่ (Logic เดิม)
+        // ฟังก์ชันตรวจสอบการจับคู่
         function checkMatch() {
             const [id1, id2] = flippedCards;
             const card1 = cards.find(card => card.id === id1);
@@ -321,20 +388,8 @@
                 scoreDisplay.textContent = score;
 
                 if (matchedPairs === pairsToWin) { 
-                    // ชนะเกม
-                    clearInterval(timerInterval);
-                    isGameActive = false;
-                    
-                    let currentHighScore = loadHighScore();
-                    if (score > currentHighScore) {
-                        localStorage.setItem('memoryGameHighScore', score);
-                        highScoreDisplay.textContent = score;
-                        resultDisplay.textContent = `สุดยอด! คุณทำลายสถิติด้วย ${score} คะแนน!`;
-                    } else {
-                        resultDisplay.textContent = `เยี่ยมมาก! คุณได้ ${score} คะแนน`;
-                    }
-                    
-                    restartButton.textContent = 'เล่นอีกครั้ง';
+                    // ชนะ Level
+                    nextLevel(); // ไป Level ถัดไป
                 }
             } else {
                 // จับคู่ไม่ได้
@@ -349,9 +404,8 @@
         }
 
         // เริ่มเกมเมื่อโหลดหน้าเว็บ
-        document.addEventListener('DOMContentLoaded', initializeGame);
-        restartButton.addEventListener('click', initializeGame);
-        levelSelect.addEventListener('change', initializeGame);
+        document.addEventListener('DOMContentLoaded', () => initializeGame(true));
+        restartButton.addEventListener('click', () => initializeGame(true));
     </script>
 </body>
 </html>
